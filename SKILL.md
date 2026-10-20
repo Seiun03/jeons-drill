@@ -113,6 +113,7 @@ ROOT가 정해지면 첫 줄에 `📚 <과목명>`을 표시하고 아래 "작�
 4. 출제하고 답을 기다린다. 정답이나 힌트를 미리 흘리지 않는다.
    - **묶음**: `batch`를 한 메시지에 낸다(형식은 question-types.md의 "묶음 형식"). 사용자는 한 줄에 순서대로 답한다. 빠진 번호는 `wrong`(패스).
    - **한 문제**: 그 문제 하나만.
+   - **클릭형 객관식**: 선택지를 클릭으로 받는 도구가 있으면(Claude Code의 AskUserQuestion 등) 객관식은 그 도구로 낸다. 규칙은 question-types.md의 "클릭형 객관식". 도구가 없으면(Codex 등) 위처럼 텍스트로.
 5. 채점 → **문제마다** `PROG record <id> <result> --asked <그 문제의 level> --note "<문제 한 줄 요약>" [--score N]`
    - result: 확실로 맞힘 `correct`, 애매로 맞힘 `unsure`, 찍어서 맞힘 `guess`, 힌트 보고 맞힘 `hint`, 부분 정답 `partial`, 오답·패스 `wrong`
    - 복합 문제는 id를 쉼표로 이어서 한 번에 기록.

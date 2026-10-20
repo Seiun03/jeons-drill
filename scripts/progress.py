@@ -261,6 +261,17 @@ def concept_view(c, s):
     }
 
 
+def order_scramble():
+    """순서 문제용: 단계 수(n)별로 보기 기호(ㄱ,ㄴ,ㄷ…)에 몇 번째 단계를 붙일지. 원래 순서와 같지 않게 섞는다."""
+    out = {}
+    for n in range(3, 7):
+        perm = list(range(1, n + 1))
+        while perm == sorted(perm):
+            random.shuffle(perm)
+        out[str(n)] = perm
+    return out
+
+
 def make_item(cid, concepts, st, P, diagnostic=False, final=False):
     c, s = concepts[cid], st[cid]
     level, flags = s["level"], {}
@@ -280,6 +291,8 @@ def make_item(cid, concepts, st, P, diagnostic=False, final=False):
             "concepts": [concept_view(c, s)]}
     if lname == "mc":
         item["mc_answer_position"] = random.randint(1, 4)
+    if variant == "order":
+        item["order_scramble"] = order_scramble()
     return item
 
 

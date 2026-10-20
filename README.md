@@ -38,7 +38,8 @@ git clone https://github.com/Seiun03/jeons-drill "$HOME\.agents\skills\jeons-dri
 git clone https://github.com/Seiun03/jeons-drill ~/.agents/skills/jeons-drill
 ```
 
-**Claude Code**: 위 경로 대신 `~/.claude/skills/jeons-drill`에 clone.
+**Claude Code**: 위 경로 대신 `~/.claude/skills/jeons-drill`에 clone. 부를 때는 `/jeons-drill`.
+Claude Code에서는 객관식을 클릭으로 답한다. 모르면 찍지 말고 **그냥 넘어가면** 된다 (모름으로 처리).
 
 설치 후 Codex를 다시 열고 `/skills`에 `jeons-drill`이 보이면 성공.
 업데이트는 그 폴더에서 `git pull`.
