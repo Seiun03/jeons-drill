@@ -38,6 +38,34 @@ description: 강의자료(PDF/PPT)로 시험 대비 무한 퀴즈를 낸다. 객
     summary.md      요약본 (좆됐어 모드)
 ```
 
+## 실행 환경
+
+이 스킬은 두 환경에서 돈다. **먼저 어느 쪽인지 정한다.**
+
+- **로컬** (Codex 앱·CLI·IDE 확장, Claude Code, Claude 데스크톱 앱의 Code 탭): 사용자 PC에서 바로 명령을 실행한다. 이 문서를 그대로 따른다.
+- **Claude 앱 채팅 + 컴퓨터 연결**: 내가 클라우드에 있고, 사용자 PC 폴더는 컴퓨터 셸 도구(이름에 `device_bash`가 들어간 도구 등)로만 다룰 수 있다. → 아래 "Claude 앱 채팅에서" 절차를 먼저 하고, 그다음부터 이 문서를 따른다.
+- 둘 다 아님(웹·모바일 채팅처럼 컴퓨터 연결이 없음): "이 스킬은 진도를 PC 폴더에 저장해야 해서, Claude 데스크톱 앱에서 컴퓨터를 연결하거나 Code 탭에서 써줘"라고 안내하고 멈춘다.
+
+### Claude 앱 채팅에서
+
+모든 명령(`WS`, `PROG`, `EXTRACT`, pip, 코드 검증)은 **컴퓨터 셸 도구로** 실행한다. 클라우드 쪽 셸에서 돌리지 않는다.
+
+1. **폴더 연결 확인**: 연결된 폴더 목록(기기 정보 도구의 connectedFolders)에 공부용 폴더가 없으면:
+   - 문서 폴더를 이름만 나열해서 `jeons-drill`이 있으면 그 폴더(`~/Documents/jeons-drill`) 접근을 요청한다.
+   - 없으면 다른 위치를 쓰는지 묻고, 처음이라면 문서 폴더 접근을 요청해 그 안에 `jeons-drill`을 만든다.
+2. **스크립트 준비** (대화마다 한 번): 셸에서
+   `cd ~ && (git -C jeons-drill pull -q || git clone -q --depth 1 https://github.com/Seiun03/jeons-drill)`
+   → 이후 `SKILL_DIR` = `~/jeons-drill`. 그 안의 `SKILL.md`와 `references/`가 지금 읽은 것보다 새 버전이면 **그쪽 내용을 따른다.**
+   - 인터넷이 막혀 clone이 안 되면: 이 스킬의 scripts 폴더를 공부용 폴더의 `.jeons-drill/scripts/`로 복사해서 쓴다.
+3. **패키지**: `python3 -c "import pymupdf, pptx, sympy"`가 실패하면 `pip install --user -q pymupdf python-pptx sympy`.
+4. **경로**: 셸에서 사용자 폴더는 `~/mnt/<이름>`으로 보인다. 명령에는 이 경로를 쓰고, 사용자에게 말할 때는 PC 경로(예: `C:\Users\...\Documents\jeons-drill\운영체제\materials`)로 바꿔 말한다.
+5. **차이점**:
+   - 탐색기를 열 수 없다. 과목을 만들면 PC 경로를 알려 주고 "이 폴더에 강의자료를 넣고 '넣었어'라고 해줘"라고 한다.
+   - 그림 검토: 이미지를 클라우드 쪽으로 가져와(stage) 직접 본 다음, 노트 수정은 셸에서 한다.
+   - 파일 삭제가 막혀 있을 수 있다. 지울 필요가 있는 임시 파일은 `.drill/tmp/`에 두고 그대로 둔다.
+   - "열린 폴더 확인" 안내(승인 창 관련)는 하지 않는다.
+   - 코드 검증: Python·gcc는 있다. Java는 `javac` 없이 `java 파일.java`(단일 파일 실행, Java 11)로 돌린다. `Picked up JAVA_TOOL_OPTIONS` 줄은 무시한다. Java 14+ 문법(record, switch 식, 텍스트 블록)이 필요한 코드는 실행 검증이 안 되므로 직접 꼼꼼히 추적하고, 해설에 "실행 검증 못 함"이라고 적는다.
+
 ## 두 가지 모드
 
 | | 일반 모드 (기본) | I'm fucked. 나는 좆됐어. 모드 |
@@ -58,6 +86,8 @@ description: 강의자료(PDF/PPT)로 시험 대비 무한 퀴즈를 낸다. 객
 ## 시작: 과목 정하기
 
 스킬을 부를 때마다 가장 먼저 `WS status`를 실행하고 결과에 따라:
+
+(`env: bridge`면 Claude 앱 채팅이다. 기본 폴더는 연결된 폴더에서 자동으로 찾는다. `base`가 없고 `mounted_subjects`가 있으면 그 과목 폴더를 ROOT로 쓴다. `base`도 과목도 없으면 "Claude 앱 채팅에서" 1번으로 돌아가 폴더 연결부터 한다.)
 
 1. **기본 폴더가 없음** (`base: null`, 처음 사용):
    - `cwd_kind`가 `subject`(지금 폴더에 이미 materials/나 .drill/이 있음)면 → 그 폴더를 ROOT로 쓰고 기본 폴더 설정은 건너뛴다. 끝.

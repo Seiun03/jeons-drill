@@ -41,6 +41,12 @@ git clone https://github.com/Seiun03/jeons-drill ~/.agents/skills/jeons-drill
 **Claude Code**: 위 경로 대신 `~/.claude/skills/jeons-drill`에 clone. 부를 때는 `/jeons-drill`.
 Claude Code에서는 객관식을 클릭으로 답한다. 모르면 찍지 말고 **그냥 넘어가면** 된다 (모름으로 처리).
 
+**Claude 앱 (데스크톱)**
+- **Code 탭**: Claude Code와 같다. 위의 Claude Code 설치를 하고, Code 탭에서 공부용 폴더를 열어 `/jeons-drill`.
+- **채팅 (컴퓨터 연결)**: 이 저장소를 zip으로 받아(폴더 이름은 `jeons-drill` 그대로) **Customize → Skills → + → Create skill → Upload a skill**로 올리고 켠다. 설정의 **Code execution and file creation**이 켜져 있어야 한다.
+  채팅에서 `jeons-drill로 문제 내줘`라고 하면, 처음에 공부용 폴더(`문서\jeons-drill`) 연결 허용을 묻는다. 스크립트는 매번 이 저장소에서 최신으로 받아 쓰므로, 스킬을 다시 올리는 건 SKILL.md가 크게 바뀌었을 때만 하면 된다.
+- 웹·모바일 채팅처럼 컴퓨터가 연결되지 않은 곳에서는 쓸 수 없다 (진도를 PC 폴더에 저장하기 때문).
+
 설치 후 Codex를 다시 열고 `/skills`에 `jeons-drill`이 보이면 성공.
 업데이트는 그 폴더에서 `git pull`.
 

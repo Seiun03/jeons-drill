@@ -8,7 +8,11 @@
     python <SKILL_DIR>/scripts/workspace.py open <경로>         파일 탐색기로 열기
 
 설정 파일: ~/.jeons-drill/config.json  (스킬 폴더 밖이라 업데이트해도 유지됨)
+기본 폴더 표시: <기본 폴더>/.jeons-drill-base  (설정 파일이 없는 환경에서 기본 폴더를 찾는 데 씀)
 과목 폴더 = materials/ 또는 .drill/ 이 있는 폴더.
+
+Claude 앱 채팅(컴퓨터 연결)처럼 사용자 폴더가 ~/mnt/<이름> 으로 붙는 환경에서는
+설정 파일이 대화마다 사라지므로, 붙어 있는 폴더들에서 표시 파일이나 과목 폴더를 찾아 기본 폴더를 알아낸다.
 """
 import argparse
 import json
@@ -23,6 +27,8 @@ except Exception:
     pass
 
 CONFIG = Path.home() / ".jeons-drill" / "config.json"
+MARKER = ".jeons-drill-base"
+MOUNTS = Path.home() / "mnt"   # Claude 앱(컴퓨터 연결)에서 사용자 폴더가 붙는 곳
 BAD_CHARS = set('<>:"/\\|?*')
 
 
@@ -70,9 +76,47 @@ def save_config(cfg):
     CONFIG.write_text(json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
+def write_marker(base: Path):
+    try:
+        (base / MARKER).write_text(json.dumps({"app": "jeons-drill", "v": 1}), encoding="utf-8")
+    except Exception:
+        pass
+
+
+def bridge_env() -> bool:
+    return MOUNTS.is_dir() and any(c.is_dir() for c in MOUNTS.iterdir())
+
+
+def scan_mounts():
+    """붙어 있는 폴더들을 살펴 기본 폴더 후보와 과목 폴더를 찾는다."""
+    found = {"bases": [], "subjects": []}
+    if not MOUNTS.is_dir():
+        return found
+    for m in sorted(MOUNTS.iterdir()):
+        if not m.is_dir():
+            continue
+        if (m / MARKER).exists():
+            found["bases"].append(m)
+        elif is_subject(m):
+            found["subjects"].append(m)
+        elif any(c.is_dir() and is_subject(c) for c in m.iterdir() if not c.name.startswith(".")):
+            found["bases"].append(m)   # 표시 파일이 생기기 전에 만든 기본 폴더
+    return found
+
+
 def base_dir():
     b = load_config().get("base")
-    return Path(b) if b else None
+    if b and Path(b).is_dir():
+        return Path(b)
+    found = scan_mounts()
+    if found["bases"]:
+        base = found["bases"][0]
+        write_marker(base)
+        cfg = load_config()
+        cfg["base"] = str(base)
+        save_config(cfg)
+        return base
+    return None
 
 
 def is_subject(p: Path) -> bool:
@@ -123,8 +167,14 @@ def out(obj):
 def cmd_status(args):
     cwd = Path(args.cwd or os.getcwd())
     base = base_dir()
-    res = {"config": str(CONFIG), "base": str(base) if base else None, "default_base": str(DEFAULT_BASE),
+    env = "bridge" if bridge_env() else "local"
+    res = {"env": env, "config": str(CONFIG), "base": str(base) if base else None,
+           "default_base": str(DEFAULT_BASE) if env == "local" else None,
            "cwd": str(cwd), "cwd_kind": "other", "current_subject": None}
+    if env == "bridge":
+        found = scan_mounts()
+        res["mounts"] = [str(m) for m in sorted(MOUNTS.iterdir()) if m.is_dir()]
+        res["mounted_subjects"] = [subject_info(m) for m in found["subjects"]]
     if is_subject(cwd):
         res["cwd_kind"], res["current_subject"] = "subject", subject_info(cwd)
     elif base and same(cwd, base):
@@ -135,7 +185,7 @@ def cmd_status(args):
         res["cwd_kind"] = "inside_base"
         if is_subject(top):
             res["current_subject"] = subject_info(top)
-    if base:
+    if base and env == "local":
         res["base_is_open_folder"] = res["cwd_kind"] in ("base", "inside_base") or (
             res["cwd_kind"] == "subject" and under(cwd, base))
     res["subjects"] = list_subjects(base) if base else []
@@ -145,6 +195,7 @@ def cmd_status(args):
 def cmd_set_base(args):
     p = Path(os.path.expandvars(os.path.expanduser(args.path))) if args.path else DEFAULT_BASE
     p.mkdir(parents=True, exist_ok=True)
+    write_marker(p)
     cfg = load_config()
     cfg["base"] = str(p.resolve())
     save_config(cfg)
@@ -176,7 +227,7 @@ def cmd_new(args):
     subj = base / name
     existed = subj.exists()
     (subj / "materials").mkdir(parents=True, exist_ok=True)
-    opened = open_path(subj / "materials") if args.open else False
+    opened = open_path(subj / "materials") if args.open and not bridge_env() else False
     out({"subject": name, "path": str(subj), "materials": str(subj / "materials"),
          "already_existed": existed, "opened": opened})
 
