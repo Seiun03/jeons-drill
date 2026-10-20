@@ -37,8 +37,9 @@ SKILL.md의 Setup을 따르되:
 ## 4. 묶음 드릴 (진단 라운드 포함)
 
 ```
-PROG pick --batch 5 [--core] [--lecture N]
+PROG pick [--core] [--lecture N]
 ```
+(출제 방식이 '묶어서'면 5개 묶음이 나온다. 사용자가 '한 문제씩'으로 바꿨으면 한 문제씩 나오고, 그때는 SKILL.md의 한 문제 흐름을 따른다.)
 
 - 처음 보는 개념이 남아 있는 동안 스크립트가 **진단 라운드**로 객관식만 준다(`diagnostic: true`, notices에 남은 개수). 따로 할 일은 없고 그대로 출제하면 된다.
 - 출력: `batch`(객관식·단답 최대 5개) + `then`(서술형 0~2개).
@@ -61,11 +62,11 @@ PROG pick --batch 5 [--core] [--lecture N]
 사용자가 하겠다고 하거나 "마지막 점검"이라고 하면:
 
 1. `PROG final`
-2. `PROG pick --final --batch 5`를 `final_done: true`가 나올 때까지 반복. 모든 문제가 `variant: final_check`.
+2. `PROG pick --final`를 `final_done: true`가 나올 때까지 반복. 모든 문제가 `variant: final_check`.
    - 각 개념을 **짧은 단답식**으로 묻는다. `recent_questions`와 다른 각도로.
    - record의 `--asked`는 `mastered`.
    - 틀리거나 애매하면 서술형으로 강등된다. 결과표에 강등을 표시한다.
-3. 끝나면: 점검한 개수, 강등된 개념 목록. 남은 시간이 있으면 `PROG pick --batch 5 --weak`으로 강등된 것부터 다시.
+3. 끝나면: 점검한 개수, 강등된 개념 목록. 남은 시간이 있으면 `PROG pick --weak`으로 강등된 것부터 다시.
 
 ## 6. 나가기
 

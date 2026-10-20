@@ -4,7 +4,8 @@
 과목 폴더에서 실행:
     python <SKILL_DIR>/scripts/progress.py init
     python <SKILL_DIR>/scripts/progress.py mode [normal|cram] [--until "2026-10-22 09:00"]
-    python <SKILL_DIR>/scripts/progress.py pick [--batch 5] [--lecture 3,5] [--core] [--weak] [--final]
+    python <SKILL_DIR>/scripts/progress.py style [batch|single]
+    python <SKILL_DIR>/scripts/progress.py pick [--single | --batch N] [--lecture 3,5] [--core] [--weak] [--final]
     python <SKILL_DIR>/scripts/progress.py record <ID[,ID...]> <result> --asked <level> [--note "..."] [--score N]
     python <SKILL_DIR>/scripts/progress.py undo
     python <SKILL_DIR>/scripts/progress.py final
@@ -13,6 +14,8 @@
 
 단계(level): 0=객관식(mc), 1=단답식(short), 2=서술형(essay), 3=숙련(mastered)
 모드: normal = 일반 모드(기본), cram = "I'm fucked. 나는 좆됐어." 모드(벼락치기)
+출제 방식(style): batch = 묶어서(기본, 일반 3개·좆됐어 5개), single = 한 문제씩. 과목별로 저장된다.
+    pick은 저장된 방식을 따르고, --single / --batch N 으로 이번 한 번만 바꿀 수 있다.
 결과(result):
     correct  정답 (객관식은 '확실'로 맞힘)
     unsure   '애매'로 맞힘. 일반 모드에선 정답과 같고, 좆됐어 모드에선 승급하지 않음
@@ -41,6 +44,7 @@ CRAM_LABEL = "I'm fucked. 나는 좆됐어."
 MODES = {
     "normal": {
         "label": "일반",
+        "batch_size": 3,                  # 묶음 출제 크기 (객관식·단답식)
         "promote": {0: 2, 1: 2, 2: 1},   # 해당 단계에서 몇 번 연속 맞히면 승급
         "mastered_weight": 0.12,          # 숙련 개념 출제 가중치 (일반 개념은 1 이상)
         "combo_prob": 0.05,               # 복합 문제 확률
@@ -54,6 +58,7 @@ MODES = {
     },
     "cram": {
         "label": CRAM_LABEL,
+        "batch_size": 5,
         "promote": {0: 1, 1: 1, 2: 1},
         "mastered_weight": 0.03,
         "combo_prob": 0.0,
@@ -127,6 +132,7 @@ def settings_of(prog):
     s.setdefault("mode", "normal")
     s.setdefault("exam_at", None)
     s.setdefault("final_start_turn", None)
+    s.setdefault("style", "batch")        # batch = 묶어서(기본), single = 한 문제씩
     return s
 
 
@@ -335,7 +341,14 @@ def cmd_pick(args):
             notices.append(f"시험까지 {h:.1f}시간. 마지막 점검(숙련 개념 단답식 한 바퀴)을 제안하세요.")
 
     pool = build_pool(args, concepts, prog, notices)
-    base = {"question_no": turn, "mode": S["mode"], "mode_label": P["label"]}
+    if args.single:
+        bsize = 0
+    elif args.batch:
+        bsize = args.batch
+    else:
+        bsize = P["batch_size"] if S["style"] == "batch" else 0
+    base = {"question_no": turn, "mode": S["mode"], "mode_label": P["label"],
+            "style": "batch" if bsize else "single"}
 
     # 마지막 점검: 점검 시작 이후 아직 안 물어본 숙련 개념만
     if args.final:
@@ -347,10 +360,10 @@ def cmd_pick(args):
         if not todo:
             return out({**base, "final_done": True, "notices": notices +
                         ["마지막 점검 완료. 강등된 개념은 일반 출제로 다시 나옵니다."]})
-        order = random.sample(todo, len(todo))[: (args.batch or 1)]
+        order = random.sample(todo, len(todo))[: (bsize or 1)]
         items = [make_item(i, concepts, st, P, final=True) for i in order]
         return out({**base, "final_remaining": len(todo), "batch": items, "then": [], "notices": notices}
-                   if args.batch else {**base, "final_remaining": len(todo), **items[0], "notices": notices})
+                   if bsize else {**base, "final_remaining": len(todo), **items[0], "notices": notices})
 
     if not pool:
         return out({**base, "error": "출제할 개념이 없습니다. --lecture 값을 확인하세요."})
@@ -370,11 +383,14 @@ def cmd_pick(args):
         order = weighted_order(due, [weight_of(concepts[i], st[i], turn, P) for i in due]) + later
         if not order:
             order = list(pool)
+    n_due = len(order) if diagnostic else len([i for i in order if st[i]["due"] <= turn])
+    can_combo = not diagnostic and not args.weak and \
+        sum(1 for i in pool if st[i]["level"] >= 2) >= COMBO_MIN_POOL and \
+        random.random() < 1 - (1 - P["combo_prob"]) ** max(bsize, 1)  # 묶음이면 문제 수만큼 확률 보정
 
     # 한 문제
-    if not args.batch:
-        advanced = [i for i in pool if st[i]["level"] >= 2]
-        if not diagnostic and not args.weak and len(advanced) >= COMBO_MIN_POOL and random.random() < P["combo_prob"]:
+    if not bsize:
+        if can_combo:
             return out({**base, **combo_item(pool, concepts, st), "notices": notices})
         return out({**base, **make_item(order[0], concepts, st, P, diagnostic=diagnostic), "notices": notices})
 
@@ -382,17 +398,19 @@ def cmd_pick(args):
     essay_backlog = sum(1 for i in pool if st[i]["level"] == 2)
     max_then = 2 if essay_backlog >= ESSAY_BACKLOG else 1
     items, then = [], []
+    if can_combo:
+        then.append(combo_item(pool, concepts, st))
     essay_like = lambda it: it["level"] in ("essay", "combo") or it["variant"] == "angle"
-    for cid in order:
+    for pos, cid in enumerate(order):
+        if len(items) >= bsize and (len(then) >= max_then or pos >= n_due):
+            break  # 서술형은 출제 시기가 된 것만 더 찾는다
         it = make_item(cid, concepts, st, P, diagnostic=diagnostic)
         if essay_like(it):
             if len(then) < max_then:
                 then.append(it)
             continue
-        if len(items) < args.batch:
+        if len(items) < bsize:
             items.append(it)
-        if len(items) >= args.batch and len(then) >= max_then:
-            break
     if not then and not diagnostic:
         used = {x["concepts"][0]["id"] for x in items}
         due_essay = [i for i in pool if st[i]["level"] == 2 and st[i]["due"] <= turn and i not in used]
@@ -505,6 +523,17 @@ def cmd_undo(args):
     save_json(ppath, prog)
     lpath.write_text("\n".join(lines[:-1]) + ("\n" if len(lines) > 1 else ""), encoding="utf-8")
     print(f"{last['turn']}번 기록({', '.join(last['ids'])}: {last['result']})을 되돌렸습니다.")
+
+
+def cmd_style(args):
+    _, ppath, _ = paths(args.root)
+    prog = load_json(ppath)
+    S, P = settings_of(prog), params_of(prog)
+    if args.name:
+        S["style"] = args.name
+        save_json(ppath, prog)
+    desc = f"묶어서 ({P['batch_size']}개씩 + 서술형은 따로)" if S["style"] == "batch" else "한 문제씩"
+    print(f"출제 방식: {desc}")
 
 
 def cmd_final(args):
@@ -621,7 +650,8 @@ def cmd_stats(args):
     if args.json:
         return out(data)
 
-    print(f"[{P['label']} 모드] 푼 문제 {prog['turn']}개 · 개념 {total}개 중 숙련 {mastered}개 "
+    style = f"{P['batch_size']}개 묶음" if S["style"] == "batch" else "한 문제씩"
+    print(f"[{P['label']} 모드 · {style}] 푼 문제 {prog['turn']}개 · 개념 {total}개 중 숙련 {mastered}개 "
           f"({mastered * 100 // max(total, 1)}%)" + (f" · 정답률 {acc:.0%}" if acc is not None else ""))
     print("단계별: " + " / ".join(f"{k} {v}" for k, v in data["by_level"].items()))
     if plan:
@@ -657,8 +687,12 @@ def main():
     m.add_argument("name", nargs="?", choices=list(MODES))
     m.add_argument("--until", help='시험 시각. 예: "2026-10-22 09:00"')
     m.add_argument("--clear-until", action="store_true")
+    st_ = sub.add_parser("style")
+    st_.add_argument("name", nargs="?", choices=["batch", "single"])
     p = sub.add_parser("pick")
-    p.add_argument("--batch", type=int, help="객관식·단답식 묶음 크기 (예: 5)")
+    g = p.add_mutually_exclusive_group()
+    g.add_argument("--batch", type=int, help="이번만 묶음 크기 지정")
+    g.add_argument("--single", action="store_true", help="이번만 한 문제")
     p.add_argument("--lecture", help="예: 3 또는 3,5")
     p.add_argument("--core", action="store_true", help="핵심 개념(weight 2)만")
     p.add_argument("--weak", action="store_true")
@@ -679,7 +713,7 @@ def main():
     s.add_argument("--json", action="store_true")
     args = ap.parse_args()
     {"init": cmd_init, "mode": cmd_mode, "pick": cmd_pick, "record": cmd_record, "undo": cmd_undo,
-     "final": cmd_final, "summary": cmd_summary, "stats": cmd_stats}[args.cmd](args)
+     "final": cmd_final, "summary": cmd_summary, "stats": cmd_stats, "style": cmd_style}[args.cmd](args)
 
 
 if __name__ == "__main__":
