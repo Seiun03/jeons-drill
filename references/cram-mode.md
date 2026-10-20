@@ -46,7 +46,7 @@ PROG pick [--core] [--lecture N]
 
 ### 진행 순서
 1. `batch` 전부를 한 메시지에 낸다. 형식은 `question-types.md`의 "묶음 형식".
-2. 사용자가 한 번에 답한다. 빠진 번호는 `wrong`(패스)으로 본다.
+2. 사용자가 한 번에 답한다. 빠진 번호는 `wrong`(패스)으로 본다. `모름`·`GG`·`줴줴`로 답한 문제는 question-types.md의 "개념 설명"을 짧은 버전으로.
 3. 각 문제를 채점하고 **문제마다** `PROG record <id> <result> --asked <level> --note "..."`.
    - 객관식: 확실 정답 `correct`, 애매 정답 `unsure`, 찍음 정답 `guess`, 오답 `wrong`
 4. 결과표 한 번 → 틀린 것·애매·찍음만 해설(각 3~4줄, 출처 포함) → 승급·강등 한 줄 → "질문 있으면 해, 없으면 '다음'"

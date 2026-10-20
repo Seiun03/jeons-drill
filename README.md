@@ -39,7 +39,7 @@ git clone https://github.com/Seiun03/jeons-drill ~/.agents/skills/jeons-drill
 ```
 
 **Claude Code**: 위 경로 대신 `~/.claude/skills/jeons-drill`에 clone. 부를 때는 `/jeons-drill`.
-Claude Code에서는 객관식을 클릭으로 답한다. 모르면 찍지 말고 **그냥 넘어가면** 된다 (모름으로 처리).
+Claude Code에서는 객관식을 클릭으로 답한다. 모르면 찍지 말고 **그냥 넘어가면** 된다 (모름으로 처리하고 개념을 설명해 준다).
 
 **Claude 앱 (데스크톱)**
 - **Code 탭**: Claude Code와 같다. 위의 Claude Code 설치를 하고, Code 탭에서 공부용 폴더를 열어 `/jeons-drill`.
@@ -73,6 +73,8 @@ Claude Code에서는 객관식을 클릭으로 답한다. 모르면 찍지 말�
 자료를 추가할 땐 그 과목의 `materials\`에 넣고 "자료 추가"라고 하면 된다.
 
 (선택) 과목 폴더에 `exam_info.md`를 만들어 시험 범위, 교수님 강조 부분, 문제 형식, 족보를 적어 두면 출제에 반영된다.
+
+모르는 문제는 `모름`, `GG`, `줴줴`라고 답하면 정답 해설 대신 그 개념을 처음부터 자세히 설명해 준다.
 
 문제 중에 쓸 수 있는 말: `다음` `패스` `힌트` `통계` `3강만` `전체` `약점 모드` `핵심만` `정정` `마지막 점검` `한 문제씩` `묶어서` `과목 바꾸기` `그만`
 
