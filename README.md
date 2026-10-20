@@ -53,6 +53,8 @@ git clone https://github.com/Seiun03/jeons-drill ~/.agents/skills/jeons-drill
   exam_info.md    ← (선택) 시험 범위, 교수님 강조 부분, 문제 형식, 족보
 ```
 
+자료는 `materials/`에 직접 넣거나, setup 할 때 Codex에게 파일 위치를 알려주면(파일을 터미널에 끌어다 놓아도 됨) 알아서 복사한다.
+
 그 폴더에서 Codex를 열고:
 
 | 입력 | 하는 일 |
