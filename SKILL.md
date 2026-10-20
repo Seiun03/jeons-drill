@@ -5,10 +5,24 @@ description: 강의자료(PDF/PPT)로 시험 대비 무한 퀴즈를 낸다. 객
 
 # Jeon's Drill (jeons-drill)
 
-과목 폴더 하나 = 과목 하나. 사용자는 과목 폴더에서 Codex를 열고 이 스킬을 부른다.
-아래에서 `SKILL_DIR`은 이 SKILL.md가 있는 폴더 경로, `PROG`는 `python SKILL_DIR/scripts/progress.py`의 줄임이다. `python`은 환경에 따라 `python3`/`py`로 바꾼다.
+과목 폴더 하나 = 과목 하나. 과목 폴더들은 **공부용 기본 폴더**(기본값: 문서\jeons-drill) 안에 모인다.
+
+줄임말:
+- `SKILL_DIR`: 이 SKILL.md가 있는 폴더
+- `ROOT`: 지금 공부하는 과목 폴더의 경로 (아래 "시작: 과목 정하기"에서 정한다)
+- `WS` = `python SKILL_DIR/scripts/workspace.py`
+- `PROG` = `python SKILL_DIR/scripts/progress.py --root "ROOT"`
+- `EXTRACT` = `python SKILL_DIR/scripts/extract.py --root "ROOT"`
+- 이 문서의 `materials/`, `.drill/`, `answers/`, `exam_info.md`는 모두 **ROOT 기준** 경로다.
+- `python`은 환경에 따라 `python3`/`py`로 바꾼다.
 
 ## 폴더 구조
+
+```
+<기본 폴더>/                 예: C:\Users\<사용자>\Documents\jeons-drill
+  운영체제/                   ← 과목 폴더 (= ROOT)
+  선형대수/
+```
 
 ```
 <과목 폴더>/
@@ -40,6 +54,28 @@ description: 강의자료(PDF/PPT)로 시험 대비 무한 퀴즈를 낸다. 객
   - "일반 모드", "정상 모드로" → `PROG mode normal`
 - 모드 이름은 화면에 그대로 `I'm fucked. 나는 좆됐어. 모드`로 표시한다.
 
+## 시작: 과목 정하기
+
+스킬을 부를 때마다 가장 먼저 `WS status`를 실행하고 결과에 따라:
+
+1. **기본 폴더가 없음** (`base: null`, 처음 사용):
+   - `cwd_kind`가 `subject`(지금 폴더에 이미 materials/나 .drill/이 있음)면 → 그 폴더를 ROOT로 쓰고 기본 폴더 설정은 건너뛴다. 끝.
+   - 아니면 묻는다: "공부용 폴더를 `<default_base>`에 만들까? 다른 곳이 좋으면 경로를 알려줘." → 답에 따라 `WS set-base` 또는 `WS set-base "<경로>"`.
+2. **지금 위치가 과목 폴더** (`cwd_kind: subject`, 또는 `inside_base`이면서 `current_subject`가 있음) → 그 과목이 ROOT.
+3. **사용자가 과목 이름을 말함** (`$jeons-drill 운영체제` 등) → `WS find <이름>`:
+   - 한 개 일치 → 그 과목이 ROOT
+   - 여러 개 → 목록을 보여 주고 고르게 함
+   - 없음 → "새 과목 '<이름>'을 만들까?" 확인 후 `WS new <이름> --open`
+4. **그 외** → `subjects` 목록을 번호로 보여 주고(과목명, 푼 문제 수, 모드) "어느 과목? 새 과목이면 이름을 말해줘"라고 묻는다. 과목이 하나도 없으면 바로 "무슨 과목 공부할 거야?"라고 묻는다. 새 과목은 `WS new <이름> --open`.
+
+과목을 새로 만들면 `materials` 폴더가 탐색기로 열린다(`opened: false`면 `materials` 경로를 알려 준다). 그리고 안내하고 멈춘다:
+"열린 `materials` 폴더에 강의자료 PDF/PPT를 넣고 '넣었어'라고 해줘. 파일 이름 앞에 강의 번호(01_, 02_)가 있으면 좋아."
+
+**열린 폴더 확인**: Codex는 연 폴더 밖에 파일을 쓸 때 승인을 물을 수 있다. `base_is_open_folder`가 `false`면(기본 폴더나 과목 폴더가 아닌 곳에서 Codex를 연 경우) 진행은 하되, 한 번만 이렇게 알린다:
+"다음부터는 `<base>`에서 Codex를 열어줘. 그래야 문제 풀 때마다 승인 창이 안 떠. (Codex 앱이면 이 폴더를 프로젝트로 추가해 두면 편해.)"
+
+ROOT가 정해지면 첫 줄에 `📚 <과목명>`을 표시하고 아래 "작업 판별"로.
+
 ## 작업 판별
 
 - `.drill/concepts.json`이 없거나 사용자가 "setup", "자료 추가", "다시 정리"라고 하면 → **Setup**
@@ -50,11 +86,11 @@ description: 강의자료(PDF/PPT)로 시험 대비 무한 퀴즈를 낸다. 객
 좆됐어 모드로 시작하는 경우엔 `references/cram-mode.md`의 "가벼운 setup" 규칙을 같이 적용한다.
 
 1. **자료 확보**: `materials/`에 PDF/PPT(X)가 있으면 2번으로. 없거나 사용자가 자료를 더 주면:
-   - **파일 경로를 알 수 있을 때** (사용자가 경로를 말함, 터미널에 파일을 끌어다 놓아 경로가 입력됨, 첨부 파일의 실제 경로가 보임, "다운로드 폴더의 PDF들"처럼 위치를 알려 줌): `materials/`를 만들고 원본 파일을 **복사**한다(이동하지 않는다). 위치만 알려 줬으면 해당 폴더를 찾아보고, 복사할 파일 목록을 보여 준 뒤 진행한다.
+   - **파일 경로를 알 수 있을 때** (사용자가 경로를 말함, 터미널에 파일을 끌어다 놓아 경로가 입력됨, 첨부 파일의 실제 경로가 보임, "다운로드 폴더의 PDF들"처럼 위치를 알려 줌): 원본 파일을 `materials/`로 **복사**한다(이동하지 않는다). 위치만 알려 줬으면 해당 폴더를 찾아보고, 복사할 파일 목록을 보여 준 뒤 진행한다.
    - **파일명에 강의 번호가 없으면**: 제목이나 첫 페이지로 강의 순서를 추정해 `01_제목.pdf` 형식의 새 이름을 제안하고, 확인을 받은 뒤 복사본에 붙인다.
    - **경로를 알 수 없을 때** (첨부한 내용만 대화에 들어왔을 때): 대화에 들어온 내용으로 파일을 다시 만들지 않는다. 그림과 슬라이드 구분이 사라져서 출제·출처가 부정확해진다. 대신 이렇게 안내하고 멈춘다: "첨부로는 원본 파일을 저장할 수 없어. 파일을 터미널에 끌어다 놓거나, 파일이 있는 위치를 알려주거나, `materials/` 폴더에 직접 넣어줘."
-   - **자료가 아예 없으면** (처음 실행): `materials/` 폴더를 만들고 파일 탐색기로 열어 준다 (Windows `explorer materials`, macOS `open materials`, Linux `xdg-open materials`). 그리고 안내하고 멈춘다: "열린 `materials` 폴더에 강의자료 PDF/PPT를 넣고 '넣었어'라고 해줘. 파일 이름 앞에 강의 번호(01_, 02_)가 있으면 좋아."
-2. 변환: `python SKILL_DIR/scripts/extract.py` (패키지 없으면 `pip install pymupdf python-pptx`)
+   - **자료가 아예 없으면**: `WS open "ROOT/materials"`로 폴더를 열어 주고(없으면 먼저 만든다) 위의 "넣었어" 안내를 하고 멈춘다.
+2. 변환: `EXTRACT` (패키지 없으면 `pip install pymupdf python-pptx`)
 3. **이미지 검토**: 노트의 `<!-- IMAGE_REVIEW: 경로 -->`마다 이미지를 직접 열어 보고, 표시 바로 아래에 `[그림] ...` 으로 내용을 적는다(도표의 축·값, 다이어그램 관계, 수식, 코드). 장식용 그림이면 `[그림] 장식`. 스캔본 의심 파일은 페이지 이미지를 보고 본문을 받아 적는다.
 4. **개념 목록 작성**: 노트를 강의 순서대로 읽고 `.drill/concepts.json`을 만든다. 형식, 개념 나누는 기준, 중요도(weight) 매기는 기준은 `references/schemas.md`. 강의 하나씩 작성해서 저장하고 다음 강의로 넘어간다(한 번에 전부 쓰지 않는다).
 5. `PROG init` (오류가 나면 concepts.json을 고친다)
@@ -94,6 +130,7 @@ description: 강의자료(PDF/PPT)로 시험 대비 무한 퀴즈를 낸다. 객
 | 시험 시각 알려주기 | `PROG mode --until "YYYY-MM-DD HH:MM"` (모드는 그대로) |
 | 마지막 점검 | `references/cram-mode.md`의 마지막 점검. 일반 모드에서는 사용자가 직접 말할 때만 (자동 제안은 좆됐어 모드 전용) |
 | 정정 / 내 답 맞는데? | 근거를 다시 확인. 사용자가 맞으면 `PROG undo` 후 올바른 결과로 다시 record. 틀렸으면 근거를 들어 설명 |
+| 과목 바꾸기 / 다른 과목 | "시작: 과목 정하기"의 4번처럼 목록을 보여 주고 ROOT를 바꾼다 |
 | 그만 | 오늘 푼 수, 승급한 개념, 약점 3개를 요약하고 종료 |
 
 ## 원칙
@@ -115,4 +152,4 @@ description: 강의자료(PDF/PPT)로 시험 대비 무한 퀴즈를 낸다. 객
 
 ## 세션 재개
 
-진도와 모드는 전부 파일에 있다. 대화가 길어져 앞 내용이 흐려지거나 새 세션을 열어도, `stats`를 보고 이어 가면 된다. 규칙이 기억나지 않으면 이 SKILL.md와 references 파일을 다시 읽는다.
+진도와 모드는 전부 파일에 있다. 대화가 길어져 앞 내용이 흐려지거나 새 세션을 열어도, ROOT를 다시 확인하고(`WS status`) `PROG stats`를 보고 이어 가면 된다. 규칙이 기억나지 않으면 이 SKILL.md와 references 파일을 다시 읽는다.
