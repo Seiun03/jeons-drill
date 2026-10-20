@@ -1,0 +1,3 @@
+interface:
+  display_name: "Jeon's Drill"
+  short_description: "강의자료로 무한 시험 문제 드릴 (객관식 → 단답식 → 서술형)"

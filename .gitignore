@@ -1,0 +1,17 @@
+# 강의자료와 학습 데이터는 절대 올리지 않는다 (저작권)
+materials/
+.drill/
+answers/
+exam_info.md
+*.pdf
+*.ppt
+*.pptx
+
+# Python
+__pycache__/
+*.pyc
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
