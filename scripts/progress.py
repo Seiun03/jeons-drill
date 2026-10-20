@@ -45,6 +45,7 @@ MODES = {
     "normal": {
         "label": "일반",
         "batch_size": 3,                  # 묶음 출제 크기 (객관식·단답식)
+        "essay_fill": False,              # 묶음 뒤 서술형을 채우려고 우선순위 뒤쪽까지 찾을지
         "promote": {0: 2, 1: 2, 2: 1},   # 해당 단계에서 몇 번 연속 맞히면 승급
         "mastered_weight": 0.12,          # 숙련 개념 출제 가중치 (일반 개념은 1 이상)
         "combo_prob": 0.05,               # 복합 문제 확률
@@ -59,6 +60,7 @@ MODES = {
     "cram": {
         "label": CRAM_LABEL,
         "batch_size": 5,
+        "essay_fill": True,               # 벼락치기는 서술형 단계를 빨리 통과시키는 게 이득 (시뮬레이션으로 확인)
         "promote": {0: 1, 1: 1, 2: 1},
         "mastered_weight": 0.03,
         "combo_prob": 0.0,
@@ -383,7 +385,6 @@ def cmd_pick(args):
         order = weighted_order(due, [weight_of(concepts[i], st[i], turn, P) for i in due]) + later
         if not order:
             order = list(pool)
-    n_due = len(order) if diagnostic else len([i for i in order if st[i]["due"] <= turn])
     can_combo = not diagnostic and not args.weak and \
         sum(1 for i in pool if st[i]["level"] >= 2) >= COMBO_MIN_POOL and \
         random.random() < 1 - (1 - P["combo_prob"]) ** max(bsize, 1)  # 묶음이면 문제 수만큼 확률 보정
@@ -394,16 +395,19 @@ def cmd_pick(args):
             return out({**base, **combo_item(pool, concepts, st), "notices": notices})
         return out({**base, **make_item(order[0], concepts, st, P, diagnostic=diagnostic), "notices": notices})
 
-    # 묶음: 객관식·단답식만 묶고, 서술형급 문제는 'then'에 따로 (보통 1개, 서술형이 많이 밀려 있으면 2개)
+    # 묶음: 우선순위 순서대로 앞에서부터 채운다. 객관식·단답식은 batch, 서술형·복합·다각도 복습은 then.
+    # 일반 모드는 batch가 차면 멈춘다(한 문제씩 뽑을 때와 같은 비율).
+    # 좆됐어 모드(essay_fill)는 출제 시기가 된 서술형을 더 찾아서 then을 채운다.
     essay_backlog = sum(1 for i in pool if st[i]["level"] == 2)
     max_then = 2 if essay_backlog >= ESSAY_BACKLOG else 1
+    n_due = len(order) if diagnostic else len([i for i in order if st[i]["due"] <= turn])
     items, then = [], []
     if can_combo:
         then.append(combo_item(pool, concepts, st))
     essay_like = lambda it: it["level"] in ("essay", "combo") or it["variant"] == "angle"
     for pos, cid in enumerate(order):
-        if len(items) >= bsize and (len(then) >= max_then or pos >= n_due):
-            break  # 서술형은 출제 시기가 된 것만 더 찾는다
+        if len(items) >= bsize and (not P["essay_fill"] or len(then) >= max_then or pos >= n_due):
+            break
         it = make_item(cid, concepts, st, P, diagnostic=diagnostic)
         if essay_like(it):
             if len(then) < max_then:
@@ -411,7 +415,7 @@ def cmd_pick(args):
             continue
         if len(items) < bsize:
             items.append(it)
-    if not then and not diagnostic:
+    if P["essay_fill"] and not then and not diagnostic:
         used = {x["concepts"][0]["id"] for x in items}
         due_essay = [i for i in pool if st[i]["level"] == 2 and st[i]["due"] <= turn and i not in used]
         if due_essay:
