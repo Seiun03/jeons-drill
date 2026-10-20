@@ -101,10 +101,6 @@ scripts/progress.py          출제 스케줄러, 승급·강등, 통계
 agents/openai.yaml           ChatGPT 앱 표시 이름
 ```
 
-## ⚠️ 주의
-
-강의자료와 과목 폴더의 `.drill/`(변환된 노트, 개념 목록, 요약본)은 **업로드하거나 공유하지 말 것.** 교수님 자료에는 저작권이 있다.
-
 ## License
 
 MIT
