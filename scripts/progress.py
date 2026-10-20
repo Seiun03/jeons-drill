@@ -261,6 +261,13 @@ def concept_view(c, s):
     }
 
 
+def choose_variant(c, lname):
+    """개념에 맞지 않는 변형(avoid_variants)은 빼고 고른다. 전부 빠지면 원래 목록에서."""
+    opts = VARIANTS[c["type"]][lname]
+    ok = [v for v in opts if v not in set(c.get("avoid_variants", []))]
+    return random.choice(ok or opts)
+
+
 def order_scramble():
     """순서 문제용: 단계 수(n)별로 보기 기호(ㄱ,ㄴ,ㄷ…)에 몇 번째 단계를 붙일지. 원래 순서와 같지 않게 섞는다."""
     out = {}
@@ -281,12 +288,12 @@ def make_item(cid, concepts, st, P, diagnostic=False, final=False):
         lname = "mastered"
         variant = "angle" if random.random() < P["angle_prob"] else "review_short"
     elif diagnostic:
-        lname, variant, flags["diagnostic"] = "mc", random.choice(VARIANTS[c["type"]]["mc"]), True
+        lname, variant, flags["diagnostic"] = "mc", choose_variant(c, "mc"), True
     elif level < 2 and c.get("weight", 1) >= CORE_WEIGHT and random.random() < P["essay_inject"]:
-        lname, variant, flags["injected"] = "essay", random.choice(VARIANTS[c["type"]]["essay"]), True
+        lname, variant, flags["injected"] = "essay", choose_variant(c, "essay"), True
     else:
         lname = LEVEL_NAMES[level]
-        variant = random.choice(VARIANTS[c["type"]][lname])
+        variant = choose_variant(c, lname)
     item = {"level": lname, "level_ko": LEVEL_KO[LEVEL_NAMES.index(lname)], "variant": variant, **flags,
             "concepts": [concept_view(c, s)]}
     if lname == "mc":
@@ -524,6 +531,34 @@ def cmd_record(args):
     print(json.dumps({"recorded": turn, "result": args.result, "level_changes": changes}, ensure_ascii=False))
 
 
+def cmd_void(args):
+    """잘못 낸 문제의 기록을 무효로 한다. 그 뒤에 같은 개념 기록이 없을 때만 진도를 되돌린다."""
+    _, ppath, lpath = paths(args.root)
+    lines = lpath.read_text(encoding="utf-8").strip().split("\n") if lpath.exists() else []
+    entries = [json.loads(l) for l in lines if l.strip()]
+    idx = next((k for k, e in enumerate(entries) if e["turn"] == args.turn and not e.get("void")), None)
+    if idx is None:
+        print(json.dumps({"error": f"{args.turn}번 기록이 없거나 이미 무효입니다."}, ensure_ascii=False))
+        sys.exit(1)
+    e = entries[idx]
+    later = [x for x in entries[idx + 1:] if not x.get("void") and set(x["ids"]) & set(e["ids"])]
+    prog = load_json(ppath)
+    restored = False
+    if not later:
+        for i, s in e["snapshot"]["concepts"].items():
+            if i in prog["concepts"]:
+                prog["concepts"][i] = s
+        save_json(ppath, prog)
+        restored = True
+    e["void"] = True
+    e["void_reason"] = args.reason
+    entries[idx] = e
+    lpath.write_text("\n".join(json.dumps(x, ensure_ascii=False) for x in entries) + "\n", encoding="utf-8")
+    print(json.dumps({"voided": args.turn, "ids": e["ids"], "progress_restored": restored,
+                      "note": None if restored else "이후 같은 개념 기록이 있어 진도는 그대로 두고 기록만 무효 처리"},
+                     ensure_ascii=False))
+
+
 def cmd_undo(args):
     _, ppath, lpath = paths(args.root)
     if not lpath.exists() or not lpath.read_text(encoding="utf-8").strip():
@@ -722,6 +757,9 @@ def main():
     r.add_argument("--note", help="이번 문제 한 줄 요약 (같은 문제 반복 방지)")
     r.add_argument("--score", type=int)
     sub.add_parser("undo")
+    vd = sub.add_parser("void")
+    vd.add_argument("turn", type=int, help="record가 돌려준 recorded 번호")
+    vd.add_argument("--reason", default="")
     sub.add_parser("final")
     sm = sub.add_parser("summary")
     sm.add_argument("--lecture")
@@ -730,7 +768,7 @@ def main():
     s.add_argument("--json", action="store_true")
     args = ap.parse_args()
     {"init": cmd_init, "mode": cmd_mode, "pick": cmd_pick, "record": cmd_record, "undo": cmd_undo,
-     "final": cmd_final, "summary": cmd_summary, "stats": cmd_stats, "style": cmd_style}[args.cmd](args)
+     "final": cmd_final, "summary": cmd_summary, "stats": cmd_stats, "style": cmd_style, "void": cmd_void}[args.cmd](args)
 
 
 if __name__ == "__main__":

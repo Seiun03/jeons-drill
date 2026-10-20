@@ -41,6 +41,7 @@
 | related | | 비교·복합 문제에 쓸 관련 개념 id |
 | weight | | 기본 1. exam_info.md에서 강조된 개념은 2 |
 | language | | (code 유형) 이 개념만 언어가 다르면 지정. 기본은 최상위 `language` |
+| avoid_variants | | 이 개념에 맞지 않는 문제 변형 목록. 예: 순서가 의미 없는 개념이면 `["order"]`. 스크립트가 이 변형을 빼고 고른다 |
 
 ## 개념을 나누는 기준
 
